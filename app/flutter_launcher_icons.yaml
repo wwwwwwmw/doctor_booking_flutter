@@ -1,0 +1,28 @@
+flutter_launcher_icons:
+  # Android configuration
+  android: true
+  ios: true
+  
+  # Path to the source icon image (must be at least 1024x1024)
+  image_path: "assets/images/app_logo.png"
+  
+  # Remove alpha channel for iOS (required by Apple)
+  remove_alpha_ios: true
+  
+  # Web configuration
+  web:
+    generate: true
+    image_path: "assets/images/app_logo.png"
+    background_color: "#ffffff"
+    theme_color: "#4CAF50"
+  
+  # Windows configuration  
+  windows:
+    generate: true
+    image_path: "assets/images/app_logo.png"
+    icon_size: 48
+
+  # Adaptive icon for Android 8.0+ (optional)
+  # Uncomment if you want adaptive icons with a background color
+  # adaptive_icon_background: "#4CAF50"
+  # adaptive_icon_foreground: "assets/images/app_logo.png"
