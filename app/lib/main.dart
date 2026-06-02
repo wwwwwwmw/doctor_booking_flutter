@@ -8,9 +8,8 @@ import 'package:doctor_booking_app/app.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 1. Select environment
-  const envStr = String.fromEnvironment('ENV', defaultValue: 'dev');
-  final config = EnvConfig.fromString(envStr);
+  // 1. Load environment config from --dart-define-from-file
+  final config = EnvConfig.fromEnvironment();
 
   // 2. Initialize Supabase (primary database)
   await Supabase.initialize(

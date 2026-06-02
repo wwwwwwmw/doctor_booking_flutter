@@ -1,14 +1,16 @@
 importScripts('https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.7.0/firebase-messaging-compat.js');
 
+// Firebase config: các giá trị __PLACEHOLDER__ sẽ được thay thế
+// bởi CI/CD pipeline hoặc script build.
 firebase.initializeApp({
-  apiKey: "AIzaSyDNq70t5nxxQ6iJf9UKTh52qDtMy2epHBM",
-  authDomain: "doctor-booking-74033.firebaseapp.com",
-  projectId: "doctor-booking-74033",
-  storageBucket: "doctor-booking-74033.firebasestorage.app",
-  messagingSenderId: "375092795192",
-  appId: "1:375092795192:web:a22abde6bb4973918693cd",
-  measurementId: "G-D80CTR9HC8"
+  apiKey: "__FIREBASE_API_KEY__",
+  authDomain: "__FIREBASE_AUTH_DOMAIN__",
+  projectId: "__FIREBASE_PROJECT_ID__",
+  storageBucket: "__FIREBASE_STORAGE_BUCKET__",
+  messagingSenderId: "__FIREBASE_MESSAGING_SENDER_ID__",
+  appId: "__FIREBASE_APP_ID__",
+  measurementId: "__FIREBASE_MEASUREMENT_ID__"
 });
 
 const messaging = firebase.messaging();
