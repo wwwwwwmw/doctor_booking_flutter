@@ -47,16 +47,20 @@ class EnvConfig {
       _ => Environment.dev,
     };
 
+
     return EnvConfig._(
       environment: environment,
-      supabaseUrl: const String.fromEnvironment('SUPABASE_URL'),
-      supabaseAnonKey: const String.fromEnvironment('SUPABASE_ANON_KEY'),
-      agoraAppId: const String.fromEnvironment('AGORA_APP_ID'),
+      supabaseUrl: const String.fromEnvironment('SUPABASE_URL',
+          defaultValue: 'https://ynpzpxikzrxmbaokchei.supabase.co'),
+      supabaseAnonKey: const String.fromEnvironment('SUPABASE_ANON_KEY',
+          defaultValue: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlucHpweGlrenJ4bWJhb2tjaGVpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg5OTQ3MDQsImV4cCI6MjA5NDU3MDcwNH0.W1s6cpIEgKzbZPQITNSxv-3E7VEhew-bquWRYjheOOc'),
+      agoraAppId: const String.fromEnvironment('AGORA_APP_ID',
+          defaultValue: '64bf3c1d07fe42eab0f0369ab1d88b94'),
       agoraCertificate: const String.fromEnvironment('AGORA_CERTIFICATE'),
       payosClientId: const String.fromEnvironment('PAYOS_CLIENT_ID'),
       payosApiKey: const String.fromEnvironment('PAYOS_API_KEY'),
       payosChecksumKey: const String.fromEnvironment('PAYOS_CHECKSUM_KEY'),
-      enableLogging: const bool.fromEnvironment('ENABLE_LOGGING'),
+      enableLogging: environment == Environment.dev ? true : const bool.fromEnvironment('ENABLE_LOGGING'),
       enableCrashlytics: const bool.fromEnvironment('ENABLE_CRASHLYTICS'),
     );
   }

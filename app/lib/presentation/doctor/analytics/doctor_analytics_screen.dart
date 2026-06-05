@@ -1,203 +1,203 @@
 import 'package:flutter/material.dart';
-import 'package:fl_chart/fl_chart.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:doctor_booking_app/config/theme/app_colors.dart';
 import 'package:doctor_booking_app/config/theme/app_spacing.dart';
 import 'package:doctor_booking_app/config/theme/app_decorations.dart';
+import 'package:doctor_booking_app/data/models/appointment_model.dart';
+import 'package:doctor_booking_app/data/repositories/appointment_repository.dart';
 import 'package:doctor_booking_app/presentation/common/widgets/shared_widgets.dart';
 
-class DoctorAnalyticsScreen extends StatelessWidget {
+/// Provider for doctor's analytics data
+final doctorAnalyticsProvider = FutureProvider<List<AppointmentModel>>((ref) {
+  final userId = Supabase.instance.client.auth.currentUser!.id;
+  return ref.watch(appointmentRepositoryProvider).getDoctorAppointments(userId);
+});
+
+class DoctorAnalyticsScreen extends ConsumerWidget {
   const DoctorAnalyticsScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final analyticsAsync = ref.watch(doctorAnalyticsProvider);
+
     return Scaffold(
       appBar: AppBar(title: const Text('Thống kê')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Period selector
-            SegmentedButton<String>(
-              segments: const [
-                ButtonSegment(value: 'week', label: Text('Tuần')),
-                ButtonSegment(value: 'month', label: Text('Tháng')),
-                ButtonSegment(value: 'year', label: Text('Năm')),
-              ],
-              selected: const {'month'},
-              onSelectionChanged: (_) {},
-            ),
-            AppSpacing.gapXxl,
+      body: analyticsAsync.when(
+        data: (appointments) {
+          final totalAppointments = appointments.length;
+          final completedCount = appointments.where((a) => a.isCompleted).length;
+          final pendingCount = appointments.where((a) => a.isPending).length;
+          final cancelledCount = appointments.where((a) => a.isCancelled).length;
+          final videoCount = appointments.where((a) => a.isVideo).length;
+          final inPersonCount = totalAppointments - videoCount;
 
-            // Revenue card
-            Container(
-              decoration: AppDecorations.cardElevated,
-              padding: const EdgeInsets.all(AppSpacing.xl),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Doanh thu tháng này', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
-                  AppSpacing.gapXs,
-                  const Text('38.400.000đ', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: AppColors.success)),
-                  AppSpacing.gapXs,
-                  Row(
+          // Unique patients
+          final uniquePatients = appointments.map((a) => a.patientId).toSet().length;
+
+          // This month
+          final now = DateTime.now();
+          final thisMonthCount = appointments.where((a) =>
+              a.startTime.year == now.year && a.startTime.month == now.month).length;
+
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Summary card
+                Container(
+                  width: double.infinity,
+                  decoration: AppDecorations.cardElevated,
+                  padding: const EdgeInsets.all(AppSpacing.xl),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                        decoration: AppDecorations.chipDecoration(AppColors.success),
-                        child: const Text('+12%', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.success)),
-                      ),
-                      AppSpacing.gapHSm,
-                      const Text('so với tháng trước', style: TextStyle(fontSize: 12, color: AppColors.textTertiary)),
+                      const Text('Tổng quan', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+                      AppSpacing.gapXs,
+                      Text('$thisMonthCount lịch hẹn tháng này', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: AppColors.primary)),
+                      AppSpacing.gapXs,
+                      Text('Tổng cộng $totalAppointments lịch hẹn', style: const TextStyle(fontSize: 13, color: AppColors.textTertiary)),
                     ],
                   ),
+                ),
+                AppSpacing.gapXxl,
+
+                // Stats grid
+                Row(
+                  children: [
+                    Expanded(child: AppStatCard(icon: Icons.people_rounded, value: '$uniquePatients', label: 'Bệnh nhân', color: AppColors.primary)),
+                    AppSpacing.gapHMd,
+                    Expanded(child: AppStatCard(icon: Icons.check_circle_outline, value: '$completedCount', label: 'Hoàn thành', color: AppColors.success)),
+                  ],
+                ),
+                AppSpacing.gapMd,
+                Row(
+                  children: [
+                    Expanded(child: AppStatCard(icon: Icons.pending_actions, value: '$pendingCount', label: 'Chờ duyệt', color: AppColors.accent)),
+                    AppSpacing.gapHMd,
+                    Expanded(child: AppStatCard(icon: Icons.cancel_outlined, value: '$cancelledCount', label: 'Đã hủy', color: AppColors.error)),
+                  ],
+                ),
+                AppSpacing.gapXxl,
+
+                // Appointment type breakdown
+                Container(
+                  width: double.infinity,
+                  decoration: AppDecorations.cardElevated,
+                  padding: const EdgeInsets.all(AppSpacing.xl),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Loại khám', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                      AppSpacing.gapLg,
+                      _StatBar(
+                        label: 'Trực tiếp',
+                        count: inPersonCount,
+                        total: totalAppointments,
+                        color: AppColors.primary,
+                        icon: Icons.person_rounded,
+                      ),
+                      AppSpacing.gapMd,
+                      _StatBar(
+                        label: 'Video Call',
+                        count: videoCount,
+                        total: totalAppointments,
+                        color: AppColors.success,
+                        icon: Icons.videocam_rounded,
+                      ),
+                    ],
+                  ),
+                ),
+                AppSpacing.gapXxl,
+
+                // Status breakdown
+                Container(
+                  width: double.infinity,
+                  decoration: AppDecorations.cardElevated,
+                  padding: const EdgeInsets.all(AppSpacing.xl),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Trạng thái lịch hẹn', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                      AppSpacing.gapLg,
+                      _StatBar(label: 'Hoàn thành', count: completedCount, total: totalAppointments, color: AppColors.success, icon: Icons.check_circle_outline),
+                      AppSpacing.gapMd,
+                      _StatBar(label: 'Đã xác nhận', count: appointments.where((a) => a.isConfirmed).length, total: totalAppointments, color: AppColors.primary, icon: Icons.verified_outlined),
+                      AppSpacing.gapMd,
+                      _StatBar(label: 'Chờ duyệt', count: pendingCount, total: totalAppointments, color: AppColors.accent, icon: Icons.pending_actions),
+                      AppSpacing.gapMd,
+                      _StatBar(label: 'Đã hủy', count: cancelledCount, total: totalAppointments, color: AppColors.error, icon: Icons.cancel_outlined),
+                    ],
+                  ),
+                ),
+
+                if (appointments.isEmpty) ...[
                   AppSpacing.gapXxl,
-                  SizedBox(
-                    height: 200,
-                    child: BarChart(
-                      BarChartData(
-                        alignment: BarChartAlignment.spaceAround,
-                        maxY: 50,
-                        barTouchData: BarTouchData(enabled: true),
-                        titlesData: FlTitlesData(
-                          leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                          bottomTitles: AxisTitles(
-                            sideTitles: SideTitles(
-                              showTitles: true,
-                              getTitlesWidget: (value, _) {
-                                final days = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
-                                return Text(days[value.toInt() % 7], style: const TextStyle(fontSize: 11, color: AppColors.textTertiary));
-                              },
-                            ),
-                          ),
-                        ),
-                        gridData: const FlGridData(show: false),
-                        borderData: FlBorderData(show: false),
-                        barGroups: List.generate(7, (i) => BarChartGroupData(
-                          x: i,
-                          barRods: [BarChartRodData(
-                            toY: [30, 25, 40, 35, 45, 20, 10][i].toDouble(),
-                            gradient: AppColors.primaryGradient,
-                            width: 20,
-                            borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
-                          )],
-                        )),
-                      ),
-                    ),
+                  const AppEmptyState(
+                    icon: Icons.analytics_outlined,
+                    title: 'Chưa có dữ liệu',
+                    subtitle: 'Thống kê sẽ hiển thị khi có lịch hẹn',
                   ),
                 ],
-              ),
-            ),
-            AppSpacing.gapXxl,
-
-            // Stats grid
-            Row(
-              children: [
-                Expanded(child: AppStatCard(icon: Icons.people_rounded, value: '128', label: 'Tổng bệnh nhân', color: AppColors.primary)),
-                AppSpacing.gapHMd,
-                Expanded(child: AppStatCard(icon: Icons.calendar_today_rounded, value: '256', label: 'Tổng lịch hẹn', color: AppColors.success)),
+                AppSpacing.gapXxxl,
               ],
             ),
-            AppSpacing.gapMd,
-            Row(
-              children: [
-                Expanded(child: AppStatCard(icon: Icons.star_rounded, value: '4.8', label: 'Đánh giá TB', color: AppColors.accent)),
-                AppSpacing.gapHMd,
-                Expanded(child: AppStatCard(icon: Icons.videocam_rounded, value: '45', label: 'Video calls', color: AppColors.secondary)),
-              ],
-            ),
-            AppSpacing.gapXxl,
-
-            // Rating distribution
-            Container(
-              decoration: AppDecorations.cardElevated,
-              padding: const EdgeInsets.all(AppSpacing.xl),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Phân bố đánh giá', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-                  AppSpacing.gapLg,
-                  ...List.generate(5, (i) {
-                    final star = 5 - i;
-                    final percent = [60, 25, 10, 3, 2][i];
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                      child: Row(
-                        children: [
-                          SizedBox(width: 20, child: Text('$star', style: const TextStyle(fontSize: 12, color: AppColors.textSecondary))),
-                          Icon(Icons.star_rounded, size: 14, color: Colors.amber.shade700),
-                          AppSpacing.gapHSm,
-                          Expanded(
-                            child: ClipRRect(
-                              borderRadius: AppSpacing.borderRadiusRound,
-                              child: LinearProgressIndicator(value: percent / 100, minHeight: 8,
-                                backgroundColor: AppColors.surfaceVariant, color: Colors.amber.shade700),
-                            ),
-                          ),
-                          AppSpacing.gapHSm,
-                          SizedBox(width: 35, child: Text('$percent%', style: const TextStyle(fontSize: 12, color: AppColors.textSecondary), textAlign: TextAlign.end)),
-                        ],
-                      ),
-                    );
-                  }),
-                ],
-              ),
-            ),
-            AppSpacing.gapXxl,
-
-            // Appointment types pie chart
-            Container(
-              decoration: AppDecorations.cardElevated,
-              padding: const EdgeInsets.all(AppSpacing.xl),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Loại khám', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-                  AppSpacing.gapLg,
-                  SizedBox(
-                    height: 180,
-                    child: PieChart(PieChartData(
-                      sectionsSpace: 3,
-                      centerSpaceRadius: 40,
-                      sections: [
-                        PieChartSectionData(value: 65, title: '65%', color: AppColors.primary, radius: 50, titleStyle: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
-                        PieChartSectionData(value: 25, title: '25%', color: AppColors.success, radius: 50, titleStyle: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
-                        PieChartSectionData(value: 10, title: '10%', color: AppColors.accent, radius: 50, titleStyle: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
-                      ],
-                    )),
-                  ),
-                  AppSpacing.gapLg,
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      _Legend(color: AppColors.primary, label: 'Trực tiếp'),
-                      _Legend(color: AppColors.success, label: 'Video Call'),
-                      _Legend(color: AppColors.accent, label: 'Tái khám'),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            AppSpacing.gapXxxl,
-          ],
-        ),
+          );
+        },
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => Center(child: Text('Lỗi: $e')),
       ),
     );
   }
 }
 
-class _Legend extends StatelessWidget {
-  final Color color;
+class _StatBar extends StatelessWidget {
   final String label;
-  const _Legend({required this.color, required this.label});
+  final int count;
+  final int total;
+  final Color color;
+  final IconData icon;
+
+  const _StatBar({required this.label, required this.count, required this.total, required this.color, required this.icon});
+
   @override
   Widget build(BuildContext context) {
-    return Row(children: [
-      Container(width: 12, height: 12, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
-      AppSpacing.gapHSm,
-      Text(label, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-    ]);
+    final percent = total > 0 ? count / total : 0.0;
+
+    return Row(
+      children: [
+        Container(
+          width: 32, height: 32,
+          decoration: AppDecorations.iconContainer(color),
+          child: Icon(icon, size: 16, color: color),
+        ),
+        AppSpacing.gapHMd,
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+                  Text('$count', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: color)),
+                ],
+              ),
+              AppSpacing.gapXs,
+              ClipRRect(
+                borderRadius: AppSpacing.borderRadiusRound,
+                child: LinearProgressIndicator(
+                  value: percent,
+                  minHeight: 6,
+                  backgroundColor: AppColors.surfaceVariant,
+                  color: color,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 }

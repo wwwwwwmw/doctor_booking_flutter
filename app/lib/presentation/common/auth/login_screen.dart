@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:doctor_booking_app/config/theme/app_colors.dart';
 import 'package:doctor_booking_app/config/theme/app_spacing.dart';
 import 'package:doctor_booking_app/presentation/patient/home/patient_home_screen.dart';
+import 'package:doctor_booking_app/presentation/doctor/home/doctor_home_screen.dart';
 import 'package:doctor_booking_app/presentation/common/auth/register_screen.dart';
 import 'package:doctor_booking_app/presentation/common/auth/forgot_password_screen.dart';
 
@@ -33,13 +34,35 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
     try {
-      await Supabase.instance.client.auth.signInWithPassword(
+      final response = await Supabase.instance.client.auth.signInWithPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
       if (!mounted) return;
+
+      // Lấy role từ user_metadata hoặc từ bảng users
+      String role = 'patient';
+      try {
+        final userData = await Supabase.instance.client
+            .from('users')
+            .select('role')
+            .eq('id', response.user!.id)
+            .maybeSingle();
+        role = userData?['role'] as String? ?? 'patient';
+      } catch (_) {
+        // Fallback: check user_metadata
+        role = response.user?.userMetadata?['role'] as String? ?? 'patient';
+      }
+
+      if (!mounted) return;
+
+      // Route theo role
+      final Widget destination = role == 'doctor'
+          ? const DoctorHomeScreen()
+          : const PatientHomeScreen();
+
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const PatientHomeScreen()),
+        MaterialPageRoute(builder: (_) => destination),
       );
     } on AuthException catch (e) {
       if (!mounted) return;
@@ -60,8 +83,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       );
     } catch (e) {
       if (!mounted) return;
+      String message = 'Đăng nhập Google thất bại';
+      if (e.toString().contains('ACTIVITY_NOT_FOUND')) {
+        message = 'Không tìm thấy trình duyệt. Vui lòng cài đặt Chrome hoặc trình duyệt web.';
+      }
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Đăng nhập Google thất bại: $e')),
+        SnackBar(content: Text(message), backgroundColor: AppColors.error),
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -84,14 +111,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 const SizedBox(height: 48),
                 // Logo
                 Container(
-                  width: 72, height: 72,
+                  width: 52, height: 52,
                   decoration: BoxDecoration(
-                    borderRadius: AppSpacing.borderRadiusLg,
-                    boxShadow: [BoxShadow(color: AppColors.primary.withValues(alpha: 0.3), blurRadius: 16, offset: const Offset(0, 6))],
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: [BoxShadow(color: AppColors.primary.withValues(alpha: 0.3), blurRadius: 12, offset: const Offset(0, 4))],
                   ),
                   child: ClipRRect(
-                    borderRadius: AppSpacing.borderRadiusLg,
-                    child: Image.asset('assets/images/app_logo.png', fit: BoxFit.cover),
+                    borderRadius: BorderRadius.circular(14),
+                    child: Image.asset('assets/images/app_logo.png', fit: BoxFit.contain),
                   ),
                 ).animate().fadeIn(duration: 400.ms).scale(begin: const Offset(0.8, 0.8)),
                 AppSpacing.gapXxl,
