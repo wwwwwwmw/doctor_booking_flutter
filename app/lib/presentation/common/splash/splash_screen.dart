@@ -7,6 +7,8 @@ import 'package:doctor_booking_app/config/theme/app_colors.dart';
 import 'package:doctor_booking_app/presentation/common/onboarding/onboarding_screen.dart';
 import 'package:doctor_booking_app/presentation/patient/home/patient_home_screen.dart';
 import 'package:doctor_booking_app/presentation/doctor/home/doctor_home_screen.dart';
+import 'package:doctor_booking_app/presentation/admin/dashboard/admin_dashboard_screen.dart';
+import 'package:doctor_booking_app/presentation/common/auth/pending_approval_screen.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
@@ -36,26 +38,30 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
       return;
     }
 
-    // Logged in → route based on role
+    // Logged in → route based on role + is_active
     try {
       final userData = await Supabase.instance.client
           .from('users')
-          .select('role')
+          .select('role, is_active')
           .eq('id', session.user.id)
           .maybeSingle();
 
       if (!mounted) return;
 
       final role = userData?['role'] as String? ?? 'patient';
+      final isActive = userData?['is_active'] as bool? ?? true;
 
       Widget destination;
       switch (role) {
         case 'doctor':
-          destination = const DoctorHomeScreen();
+          if (!isActive) {
+            destination = const PendingApprovalScreen();
+          } else {
+            destination = const DoctorHomeScreen();
+          }
           break;
         case 'admin':
-          // Admin could go to admin dashboard, but for now use patient home
-          destination = const PatientHomeScreen();
+          destination = const AdminDashboardScreen();
           break;
         default:
           destination = const PatientHomeScreen();

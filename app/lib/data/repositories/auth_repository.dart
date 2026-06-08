@@ -48,17 +48,18 @@ class AuthRepository {
       }
 
       // Create profile
+      final isDoctor = role == 'doctor';
       final userData = {
         'id': response.user!.id,
         'email': email,
         'full_name': fullName,
         'role': role,
-        'is_active': true,
+        'is_active': !isDoctor, // Doctor: false (chờ duyệt), Patient: true
       };
       await _client.from('users').insert(userData);
 
       // If doctor, create doctor profile
-      if (role == 'doctor') {
+      if (isDoctor) {
         await _client.from('doctors').insert({'id': response.user!.id});
       }
 

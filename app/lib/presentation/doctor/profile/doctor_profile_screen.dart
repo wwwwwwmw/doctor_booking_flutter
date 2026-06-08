@@ -6,7 +6,9 @@ import 'package:doctor_booking_app/config/theme/app_colors.dart';
 import 'package:doctor_booking_app/config/theme/app_spacing.dart';
 import 'package:doctor_booking_app/config/theme/app_decorations.dart';
 import 'package:doctor_booking_app/data/models/user_model.dart';
+import 'package:doctor_booking_app/data/models/doctor_model.dart';
 import 'package:doctor_booking_app/data/repositories/auth_repository.dart';
+import 'package:doctor_booking_app/data/repositories/doctor_repository.dart';
 import 'package:doctor_booking_app/presentation/common/auth/login_screen.dart';
 import 'package:doctor_booking_app/presentation/common/profile/profile_edit_screen.dart';
 import 'package:doctor_booking_app/presentation/common/settings/settings_screen.dart';
@@ -17,6 +19,16 @@ import 'package:doctor_booking_app/presentation/doctor/analytics/doctor_analytic
 final doctorProfileProvider = FutureProvider<UserModel>((ref) {
   final userId = Supabase.instance.client.auth.currentUser!.id;
   return ref.watch(authRepositoryProvider).getUserProfile(userId);
+});
+
+/// Doctor detail for profile stats
+final doctorProfileStatsProvider = FutureProvider<DoctorModel?>((ref) async {
+  final userId = Supabase.instance.client.auth.currentUser!.id;
+  try {
+    return await ref.watch(doctorRepositoryProvider).getDoctorById(userId);
+  } catch (_) {
+    return null;
+  }
 });
 
 class DoctorProfileScreen extends ConsumerWidget {
@@ -51,12 +63,13 @@ class DoctorProfileScreen extends ConsumerWidget {
   }
 }
 
-class _DoctorProfileContent extends StatelessWidget {
+class _DoctorProfileContent extends ConsumerWidget {
   final UserModel user;
   const _DoctorProfileContent({required this.user});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final doctorStats = ref.watch(doctorProfileStatsProvider);
     return CustomScrollView(
       slivers: [
         SliverToBoxAdapter(
@@ -114,13 +127,34 @@ class _DoctorProfileContent extends StatelessWidget {
                   ],
                 ),
                 AppSpacing.gapXxl,
-                // Stats
+                // Stats from DB
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: const [
-                    _StatPill(value: '--', label: 'Đánh giá'),
-                    _StatPill(value: '--', label: 'Bệnh nhân'),
-                    _StatPill(value: '--', label: 'Năm KN'),
+                  children: [
+                    _StatPill(
+                      value: doctorStats.when(
+                        data: (d) => d != null ? d.displayRating : '--',
+                        loading: () => '...',
+                        error: (_, __) => '--',
+                      ),
+                      label: 'Đánh giá',
+                    ),
+                    _StatPill(
+                      value: doctorStats.when(
+                        data: (d) => d != null ? '${d.ratingCount}' : '0',
+                        loading: () => '...',
+                        error: (_, __) => '0',
+                      ),
+                      label: 'Đánh giá',
+                    ),
+                    _StatPill(
+                      value: doctorStats.when(
+                        data: (d) => d != null ? '${d.experienceYears}' : '0',
+                        loading: () => '...',
+                        error: (_, __) => '0',
+                      ),
+                      label: 'Năm KN',
+                    ),
                   ],
                 ).animate().fadeIn(delay: 200.ms),
               ],

@@ -15,6 +15,7 @@ class DoctorModel extends Equatable {
   // Joined fields
   final String? fullName;
   final String? avatarUrl;
+  final String? email;
   final String? specialityName;
   final String? specialityNameVi;
 
@@ -32,6 +33,7 @@ class DoctorModel extends Equatable {
     this.workingHours,
     this.fullName,
     this.avatarUrl,
+    this.email,
     this.specialityName,
     this.specialityNameVi,
   });
@@ -54,6 +56,7 @@ class DoctorModel extends Equatable {
       workingHours: json['working_hours'] as Map<String, dynamic>?,
       fullName: user?['full_name'] as String?,
       avatarUrl: user?['avatar_url'] as String?,
+      email: user?['email'] as String?,
       specialityName: speciality?['name'] as String?,
       specialityNameVi: speciality?['name_vi'] as String?,
     );

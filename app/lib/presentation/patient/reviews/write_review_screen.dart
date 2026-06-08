@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:doctor_booking_app/config/theme/app_colors.dart';
 import 'package:doctor_booking_app/config/theme/app_spacing.dart';
+import 'package:doctor_booking_app/data/models/review_model.dart';
+import 'package:doctor_booking_app/data/repositories/review_repository.dart';
 
-class WriteReviewScreen extends StatefulWidget {
+class WriteReviewScreen extends ConsumerStatefulWidget {
   final String doctorId;
   final String doctorName;
   final String? appointmentId;
@@ -10,10 +14,10 @@ class WriteReviewScreen extends StatefulWidget {
   const WriteReviewScreen({super.key, required this.doctorId, required this.doctorName, this.appointmentId});
 
   @override
-  State<WriteReviewScreen> createState() => _WriteReviewScreenState();
+  ConsumerState<WriteReviewScreen> createState() => _WriteReviewScreenState();
 }
 
-class _WriteReviewScreenState extends State<WriteReviewScreen> {
+class _WriteReviewScreenState extends ConsumerState<WriteReviewScreen> {
   int _rating = 0;
   final _commentController = TextEditingController();
   bool _isAnonymous = false;
@@ -103,12 +107,32 @@ class _WriteReviewScreenState extends State<WriteReviewScreen> {
               child: FilledButton(
                 onPressed: _rating == 0 || _isLoading ? null : () async {
                   setState(() => _isLoading = true);
-                  await Future.delayed(const Duration(seconds: 1));
-                  if (!mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('✅ Cảm ơn bạn đã đánh giá!'), backgroundColor: AppColors.success),
-                  );
-                  Navigator.pop(context, true);
+                  try {
+                    final userId = Supabase.instance.client.auth.currentUser!.id;
+                    final review = ReviewModel(
+                      id: '',
+                      patientId: userId,
+                      doctorId: widget.doctorId,
+                      rating: _rating,
+                      appointmentId: widget.appointmentId,
+                      comment: _commentController.text.trim().isEmpty ? null : _commentController.text.trim(),
+                      isAnonymous: _isAnonymous,
+                      createdAt: DateTime.now(),
+                    );
+                    await ref.read(reviewRepositoryProvider).submitReview(review);
+                    if (!mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('✅ Cảm ơn bạn đã đánh giá!'), backgroundColor: AppColors.success),
+                    );
+                    Navigator.pop(context, true);
+                  } catch (e) {
+                    if (!mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Lỗi: $e'), backgroundColor: AppColors.error),
+                    );
+                  } finally {
+                    if (mounted) setState(() => _isLoading = false);
+                  }
                 },
                 child: _isLoading
                     ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))

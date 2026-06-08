@@ -46,17 +46,37 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       );
 
       if (response.user != null) {
+        final isDoctor = _selectedRole == 'doctor';
+
         await Supabase.instance.client.from('users').insert({
           'id': response.user!.id,
           'email': _emailController.text.trim(),
           'full_name': _nameController.text.trim(),
           'role': _selectedRole,
-          'is_active': true,
+          'is_active': !isDoctor, // Doctor: false (chờ duyệt), Patient: true
         });
+
+        // Nếu là bác sĩ, tạo doctor profile
+        if (isDoctor) {
+          await Supabase.instance.client.from('doctors').insert({
+            'id': response.user!.id,
+          });
+        }
+
+        // Đăng xuất để chờ xác nhận
+        await Supabase.instance.client.auth.signOut();
 
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Đăng ký thành công! Vui lòng kiểm tra email để xác nhận.'), backgroundColor: AppColors.success),
+          SnackBar(
+            content: Text(
+              isDoctor
+                  ? 'Đăng ký thành công! Tài khoản bác sĩ cần admin duyệt trước khi sử dụng.'
+                  : 'Đăng ký thành công! Vui lòng kiểm tra email để xác nhận.',
+            ),
+            backgroundColor: AppColors.success,
+            duration: const Duration(seconds: 4),
+          ),
         );
         Navigator.of(context).pop();
       }

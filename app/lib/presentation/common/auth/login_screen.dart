@@ -6,8 +6,10 @@ import 'package:doctor_booking_app/config/theme/app_colors.dart';
 import 'package:doctor_booking_app/config/theme/app_spacing.dart';
 import 'package:doctor_booking_app/presentation/patient/home/patient_home_screen.dart';
 import 'package:doctor_booking_app/presentation/doctor/home/doctor_home_screen.dart';
+import 'package:doctor_booking_app/presentation/admin/dashboard/admin_dashboard_screen.dart';
 import 'package:doctor_booking_app/presentation/common/auth/register_screen.dart';
 import 'package:doctor_booking_app/presentation/common/auth/forgot_password_screen.dart';
+import 'package:doctor_booking_app/presentation/common/auth/pending_approval_screen.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -40,15 +42,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       );
       if (!mounted) return;
 
-      // Lấy role từ user_metadata hoặc từ bảng users
+      // Lấy role + is_active từ bảng users
       String role = 'patient';
+      bool isActive = true;
       try {
         final userData = await Supabase.instance.client
             .from('users')
-            .select('role')
+            .select('role, is_active')
             .eq('id', response.user!.id)
             .maybeSingle();
         role = userData?['role'] as String? ?? 'patient';
+        isActive = userData?['is_active'] as bool? ?? true;
       } catch (_) {
         // Fallback: check user_metadata
         role = response.user?.userMetadata?['role'] as String? ?? 'patient';
@@ -56,10 +60,25 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
       if (!mounted) return;
 
+      // Doctor chưa được duyệt → chặn đăng nhập
+      if (role == 'doctor' && !isActive) {
+        await Supabase.instance.client.auth.signOut();
+        if (!mounted) return;
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const PendingApprovalScreen()),
+        );
+        return;
+      }
+
       // Route theo role
-      final Widget destination = role == 'doctor'
-          ? const DoctorHomeScreen()
-          : const PatientHomeScreen();
+      final Widget destination;
+      if (role == 'admin') {
+        destination = const AdminDashboardScreen();
+      } else if (role == 'doctor') {
+        destination = const DoctorHomeScreen();
+      } else {
+        destination = const PatientHomeScreen();
+      }
 
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (_) => destination),
